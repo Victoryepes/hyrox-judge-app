@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/error_utils.dart';
@@ -400,6 +401,9 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     final registroIdPorDorsal = <int, String>{
       for (final c in pantallaAsync.value ?? const []) c.numeroDorsal as int: c.registroId as String,
     };
+    final segundosPorDorsal = <int, int>{
+      for (final c in pantallaAsync.value ?? const []) c.numeroDorsal as int: c.segundosEnBase as int,
+    };
     return ListView.builder(
       itemCount: _atletas.length,
       itemBuilder: (context, i) {
@@ -506,7 +510,10 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
                               if (descalificado)
                                 const Text('DESCALIFICADO', style: TextStyle(color: Colors.redAccent, fontSize: 9, fontFamily: 'monospace'))
                               else if (enBase)
-                                const Text('EN BASE', style: TextStyle(color: Colors.redAccent, fontSize: 9, fontFamily: 'monospace'))
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                                  const Text('EN BASE ', style: TextStyle(color: Colors.redAccent, fontSize: 9, fontFamily: 'monospace')),
+                                  _MiniChrono(segundosBase: segundosPorDorsal[a.numeroDorsal] ?? 0),
+                                ])
                               else if (completada != null)
                                 const Text('COMPLETADA', style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontFamily: 'monospace')),
                             ],
@@ -590,5 +597,45 @@ class _ModoTab extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Cronómetro que tickea localmente cada segundo desde segundosBase — usado
+/// en la fila de modo lista para quien está actualmente en base.
+class _MiniChrono extends StatefulWidget {
+  const _MiniChrono({required this.segundosBase});
+  final int segundosBase;
+
+  @override
+  State<_MiniChrono> createState() => _MiniChronoState();
+}
+
+class _MiniChronoState extends State<_MiniChrono> {
+  late int _sec = widget.segundosBase;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() => _sec++));
+  }
+
+  @override
+  void didUpdateWidget(covariant _MiniChrono old) {
+    super.didUpdateWidget(old);
+    if (old.segundosBase != widget.segundosBase) _sec = widget.segundosBase;
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mm = (_sec ~/ 60).toString().padLeft(2, '0');
+    final ss = (_sec % 60).toString().padLeft(2, '0');
+    return Text('$mm:$ss', style: const TextStyle(color: Colors.redAccent, fontSize: 9, fontFamily: 'monospace', fontWeight: FontWeight.bold));
   }
 }
