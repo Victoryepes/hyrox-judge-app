@@ -62,6 +62,13 @@ class OfflineQueueService {
 
   Future<List<PendingAction>> pendientes() => _dao.listNotConfirmed();
 
+  /// El juez descarta manualmente una acción que agotó reintentos (reconoce
+  /// que ese dato no se sincronizó y decide seguir sin ella).
+  Future<void> descartar(String id) async {
+    await _dao.deleteById(id);
+    _onActionResolved.add(null);
+  }
+
   // ── Wrappers online-first con fallback a cola ──────────────────────────
 
   /// Devuelve el resultado si se pudo marcar online; null si quedó encolado

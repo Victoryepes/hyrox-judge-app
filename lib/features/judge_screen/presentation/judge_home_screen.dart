@@ -5,6 +5,7 @@ import '../../auth/presentation/providers/auth_provider.dart';
 import '../../offline_queue/presentation/offline_queue_provider.dart';
 import 'providers/judge_providers.dart';
 import 'widgets/connection_indicator.dart';
+import 'widgets/offline_queue_indicator.dart';
 import 'widgets/heat_alert_banner.dart';
 import 'widgets/en_base_card.dart';
 import 'widgets/reps_por_categoria.dart';
@@ -278,6 +279,7 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
           ],
         ),
         actions: [
+          const Padding(padding: EdgeInsets.only(right: 10), child: Center(child: OfflineQueueIndicator())),
           const Padding(padding: EdgeInsets.only(right: 12), child: Center(child: ConnectionIndicator())),
           IconButton(onPressed: _logout, icon: const Icon(Icons.logout, size: 18)),
         ],

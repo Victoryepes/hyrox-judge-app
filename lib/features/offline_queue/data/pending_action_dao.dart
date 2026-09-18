@@ -46,6 +46,13 @@ class PendingActionDao {
     );
   }
 
+  /// El juez descarta manualmente una acción que ya no va a reintentarse
+  /// (normalmente una que agotó los reintentos y perdió el dato).
+  Future<void> deleteById(String id) async {
+    final db = await LocalDb.instance();
+    await db.delete('pending_actions', where: 'id = ?', whereArgs: [id]);
+  }
+
   /// Purga acciones confirmadas más viejas que N horas (mantiene rastro reciente para soporte).
   Future<void> purgeConfirmedOlderThan(Duration age) async {
     final db = await LocalDb.instance();
