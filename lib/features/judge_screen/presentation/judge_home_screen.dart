@@ -328,17 +328,27 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
                       : const Text('MARCAR', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 8),
-                // Descalificar por dorsal — decisión de arbitraje, con
-                // confirmación, disponible también en modo dorsal (antes
-                // solo se podía desde modo lista).
-                IconButton(
-                  onPressed: (_marcando || _dorsalCtrl.text.isEmpty) ? null : _confirmarDescalificarDorsal,
-                  tooltip: 'Descalificar dorsal',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white10,
+                // Opciones (⋮) — descalificar vive acá, no como botón suelto
+                // al lado de MARCAR, para evitar tocarlo por error en plena carrera.
+                PopupMenuButton<void>(
+                  enabled: !_marcando && _dorsalCtrl.text.isNotEmpty,
+                  tooltip: 'Opciones',
+                  color: const Color(0xFF1C1815),
+                  icon: Container(
                     padding: const EdgeInsets.all(14),
+                    decoration: const BoxDecoration(color: Colors.white10, shape: BoxShape.circle),
+                    child: const Text('⋮', style: TextStyle(color: Colors.white54, fontSize: 18, height: 1)),
                   ),
-                  icon: const Icon(Icons.block, color: Colors.redAccent, size: 20),
+                  itemBuilder: (ctx) => [
+                    PopupMenuItem<void>(
+                      onTap: _confirmarDescalificarDorsal,
+                      child: const Row(children: [
+                        Icon(Icons.block, color: Colors.redAccent, size: 16),
+                        SizedBox(width: 8),
+                        Text('Descalificar dorsal', style: TextStyle(color: Colors.redAccent)),
+                      ]),
+                    ),
+                  ],
                 ),
               ],
             ),
