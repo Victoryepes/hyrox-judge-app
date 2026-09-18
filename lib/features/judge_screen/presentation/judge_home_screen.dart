@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/error_utils.dart';
+import '../../../core/app_version.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../offline_queue/presentation/offline_queue_provider.dart';
 import 'providers/judge_providers.dart';
@@ -277,6 +278,7 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
           children: [
             Text(session.nombreEstacion, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
             Text(session.codigoAcceso, style: const TextStyle(fontSize: 9, color: Colors.white38)),
+            Text(kAppBuildLabel, style: const TextStyle(fontSize: 7, color: Colors.white24)),
           ],
         ),
         actions: [
