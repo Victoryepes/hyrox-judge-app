@@ -213,49 +213,6 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     }
   }
 
-  Future<void> _confirmarDescalificarDorsal() async {
-    final numero = int.tryParse(_dorsalCtrl.text);
-    if (numero == null) return;
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1815),
-        title: const Text('Descalificar', style: TextStyle(color: Colors.white)),
-        content: Text(
-          '¿Descalificar al dorsal $numero? No podrá seguir compitiendo y su '
-          'estado quedará como DESCALIFICADO en el ranking.',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800),
-            child: const Text('Sí, descalificar'),
-          ),
-        ],
-      ),
-    );
-    if (confirmado != true) return;
-    final session = ref.read(sessionProvider).value!;
-    setState(() => _marcando = true);
-    try {
-      await ref.read(timingApiProvider).descalificarPorDorsal(numero, null, session.tokenSesion);
-      _dorsalCtrl.clear();
-      await _loadAtletas();
-      ref.read(pantallaProvider.notifier).refresh();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Dorsal $numero — DESCALIFICADO')));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeApiError(e))));
-      }
-    } finally {
-      if (mounted) setState(() => _marcando = false);
-    }
-  }
-
   Future<void> _logout() async {
     await ref.read(sessionProvider.notifier).logout();
   }
@@ -326,29 +283,6 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
                   child: _marcando
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('MARCAR', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 8),
-                // Opciones (⋮) — descalificar vive acá, no como botón suelto
-                // al lado de MARCAR, para evitar tocarlo por error en plena carrera.
-                PopupMenuButton<void>(
-                  enabled: !_marcando && _dorsalCtrl.text.isNotEmpty,
-                  tooltip: 'Opciones',
-                  color: const Color(0xFF1C1815),
-                  icon: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: const BoxDecoration(color: Colors.white10, shape: BoxShape.circle),
-                    child: const Text('⋮', style: TextStyle(color: Colors.white54, fontSize: 18, height: 1)),
-                  ),
-                  itemBuilder: (ctx) => [
-                    PopupMenuItem<void>(
-                      onTap: _confirmarDescalificarDorsal,
-                      child: const Row(children: [
-                        Icon(Icons.block, color: Colors.redAccent, size: 16),
-                        SizedBox(width: 8),
-                        Text('Descalificar dorsal', style: TextStyle(color: Colors.redAccent)),
-                      ]),
-                    ),
-                  ],
                 ),
               ],
             ),

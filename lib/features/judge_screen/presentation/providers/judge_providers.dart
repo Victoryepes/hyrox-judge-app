@@ -31,6 +31,10 @@ class PantallaNotifier extends StateNotifier<AsyncValue<List<CompetidorEnBase>>>
   final JuezSession _session;
   Timer? _pollTimer;
   StreamSubscription? _queueSub;
+  /// Sesión cerrada por el organizador (kick) o notifier ya descartado —
+  /// evita que el reintento automático de reconexión resucite un socket
+  /// con un tokenSesion que el backend ya invalidó.
+  bool _cerrada = false;
 
   TimingApi get _api => _ref.read(timingApiProvider);
 
@@ -47,7 +51,24 @@ class PantallaNotifier extends StateNotifier<AsyncValue<List<CompetidorEnBase>>>
     socket.on('conexion-confirmada', (_) => _ref.read(wsConnectedProvider.notifier).state = true);
     socket.on('disconnect', (_) {
       _ref.read(wsConnectedProvider.notifier).state = false;
-      Future.delayed(const Duration(seconds: 3), () => socket.forceReconnect(_session.tokenSesion));
+      if (_cerrada) return;
+      Future.delayed(const Duration(seconds: 3), () {
+        if (_cerrada) return;
+        socket.forceReconnect(_session.tokenSesion);
+      });
+    });
+    // El organizador puede forzar la desconexión de un juez desde su panel
+    // (kickByToken) — antes esto solo mostraba "sin conexión" para siempre
+    // y el dispositivo quedaba reintentando indefinidamente con un
+    // tokenSesion que el backend ya borró. Ahora cierra la sesión local y
+    // la app vuelve sola a la pantalla de ingresar código.
+    socket.on('error', (data) {
+      final d = Map<String, dynamic>.from(data as Map);
+      final msg = d['message']?.toString() ?? '';
+      if (msg.contains('cerrada')) {
+        _cerrada = true;
+        _ref.read(sessionProvider.notifier).logout();
+      }
     });
 
     socket.on('dorsal-marcado', (_) => refresh());
@@ -120,6 +141,7 @@ class PantallaNotifier extends StateNotifier<AsyncValue<List<CompetidorEnBase>>>
 
   @override
   void dispose() {
+    _cerrada = true;
     _pollTimer?.cancel();
     _queueSub?.cancel();
     super.dispose();

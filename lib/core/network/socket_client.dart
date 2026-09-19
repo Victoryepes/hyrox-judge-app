@@ -19,7 +19,7 @@ class SocketClient {
           .setTransports(['websocket', 'polling'])
           .setAuth({'token': tokenSesion})
           .enableReconnection()
-          .setReconnectionAttempts(5)
+          .setReconnectionDelayMax(10000)
           .build(),
     );
 
