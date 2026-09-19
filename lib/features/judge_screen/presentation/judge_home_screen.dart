@@ -39,6 +39,10 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadCatReps();
+    // El organizador puede reordenar las bases de una categoría en pleno
+    // evento -- antes esta pantalla no se enteraba hasta el próximo login
+    // del juez, mostrando reps/ejercicio desactualizados.
+    ref.read(socketClientProvider).on('resultado-actualizado', (_) => _loadCatReps());
   }
 
   Future<void> _loadCatReps() async {
@@ -64,6 +68,7 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ref.read(socketClientProvider).off('resultado-actualizado');
     _dorsalCtrl.dispose();
     super.dispose();
   }

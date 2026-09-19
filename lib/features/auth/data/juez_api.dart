@@ -30,8 +30,10 @@ class JuezApi {
   final _dio = ApiClient.instance.dio;
 
   /// Paso 1: GET /juez/estaciones/by-codigo/:codigo — valida el código y
-  /// devuelve las estaciones de esa competencia. Deduplica por numeroOrden
-  /// (una estación física por posición, igual que hace JudgeAccessModal.tsx).
+  /// devuelve las estaciones de esa competencia. Deduplica solo cuando
+  /// numeroOrden Y ejercicio coinciden -- si una categoria se reordeno por
+  /// separado y ahora difiere, se muestran ambas variantes en vez de ocultar
+  /// una al azar (igual que JudgeAccessModal.tsx).
   Future<List<EstacionOption>> estacionesPorCodigo(String codigo) async {
     final res = await _dio.get('/juez/estaciones/by-codigo/$codigo');
     final list = (res.data as List)
@@ -39,8 +41,8 @@ class JuezApi {
         .toList()
       ..sort((a, b) => a.numeroOrden.compareTo(b.numeroOrden));
 
-    final seen = <int>{};
-    return list.where((e) => seen.add(e.numeroOrden)).toList();
+    final seen = <String>{};
+    return list.where((e) => seen.add('${e.numeroOrden}:${e.nombreEjercicio}')).toList();
   }
 
   /// Paso 2: POST /juez/conectar — crea la sesión y devuelve el tokenSesion.
