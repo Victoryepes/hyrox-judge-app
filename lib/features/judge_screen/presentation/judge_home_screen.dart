@@ -225,6 +225,12 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
       ),
     );
     if (confirmado != true) return;
+    await _descalificar(competidorId, nombre);
+  }
+
+  /// Sin diálogo de confirmación propio — para llamadores que ya confirmaron
+  /// (ej. EnBaseCard, que muestra su propio AlertDialog antes de invocar esto).
+  Future<void> _descalificar(String competidorId, String nombre) async {
     final session = ref.read(sessionProvider).value!;
     setState(() => _busyRegistroId = competidorId);
     try {
@@ -345,6 +351,12 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
                     loading: () => const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(child: Text(describeApiError(e), style: const TextStyle(color: Colors.redAccent))),
                     data: (lista) {
+                      if (session.modoMovil && ref.watch(estacionActivaProvider) == null) {
+                        return const Center(
+                          child: Text('Selecciona arriba la base donde estás parado',
+                              textAlign: TextAlign.center, style: TextStyle(color: Colors.white38)),
+                        );
+                      }
                       if (lista.isEmpty) {
                         return const Center(
                           child: Text('Sin competidores en base', style: TextStyle(color: Colors.white38)),
@@ -361,6 +373,7 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
                             busy: _busyRegistroId == c.registroId,
                             onPenalizar: () => showPenalizacionModal(context, ref, registroId: c.registroId),
                             onDeshacer: () => _deshacerEntrada(c.registroId),
+                            onDescalificar: () => _descalificar(c.competidorId, c.nombre),
                           );
                         },
                       );
@@ -598,27 +611,50 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
               }).toList(),
             ),
           ),
-          const SizedBox(height: 6),
-          ...catActiva.estaciones.map((e) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      child: Text('${e.numeroOrden}', style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${e.tipo == 'LLEGADA' ? '🏁 ' : ''}${e.nombreEjercicio}',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text('Toca la base donde estás parado para ver quién está ahí',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 10)),
+          ),
+          const SizedBox(height: 2),
+          ...catActiva.estaciones.map((e) {
+            final seleccionada = ref.watch(estacionActivaProvider) == e.id;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              child: InkWell(
+                onTap: () => ref.read(estacionActivaProvider.notifier).state = seleccionada ? null : e.id,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: seleccionada ? Colors.redAccent.withValues(alpha: 0.15) : Colors.transparent,
+                    border: Border.all(color: seleccionada ? Colors.redAccent : Colors.white12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        child: Text('${e.numeroOrden}', style: TextStyle(color: seleccionada ? Colors.redAccent : Colors.white38, fontSize: 11)),
                       ),
-                    ),
-                    if (e.detalleRepeticiones.isNotEmpty)
-                      Text(e.detalleRepeticiones, style: const TextStyle(color: Colors.white38, fontSize: 10)),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${e.tipo == 'LLEGADA' ? '🏁 ' : ''}${e.nombreEjercicio}',
+                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                      if (e.detalleRepeticiones.isNotEmpty)
+                        Text(e.detalleRepeticiones, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                      if (seleccionada) ...[
+                        const SizedBox(width: 6),
+                        const Text('VIENDO', style: TextStyle(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold)),
+                      ],
+                    ],
+                  ),
                 ),
-              )),
+              ),
+            );
+          }),
         ],
       ),
     );

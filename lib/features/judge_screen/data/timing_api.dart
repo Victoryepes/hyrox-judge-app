@@ -63,9 +63,14 @@ class TimingApi {
     );
   }
 
-  Future<List<CompetidorEnBase>> getPantalla(String tokenSesion) async {
+  /// [estacionId]: en asignación móvil el juez no está atado a una posición
+  /// física — debe indicar explícitamente en qué base está parado para ver
+  /// quién está en base ahí. Ignorado en modo fijo (usa la estación de la
+  /// conexión).
+  Future<List<CompetidorEnBase>> getPantalla(String tokenSesion, {String? estacionId}) async {
     final res = await _dio.get(
       '/timing/pantalla',
+      queryParameters: estacionId != null ? {'estacionId': estacionId} : null,
       options: ApiClient.instance.withTokenSesion(tokenSesion),
     );
     return (res.data as List)

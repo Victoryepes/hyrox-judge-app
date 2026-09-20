@@ -18,6 +18,12 @@ final alertaHeatProvider = StateProvider<AlertaHeat?>((ref) => null);
 /// Notificación transitoria (salida grupal/individual, retenido/liberado).
 final transientNotifProvider = StateProvider<String?>((ref) => null);
 
+/// Asignación móvil: estación física donde el juez dice estar parado ahora
+/// mismo — sin ella, `PantallaNotifier` no tiene forma de saber qué base
+/// mostrar (la conexión solo trae una estación placeholder). Null = todavía
+/// no seleccionó ninguna, o está en modo fijo (donde no aplica).
+final estacionActivaProvider = StateProvider<String?>((ref) => null);
+
 /// Pantalla "en base" — equivalente al estado `pantalla` de JudgePage.tsx.
 /// Se sincroniza por polling (cada 5s, igual que la web) + eventos de socket.
 class PantallaNotifier extends StateNotifier<AsyncValue<List<CompetidorEnBase>>> {
@@ -25,6 +31,9 @@ class PantallaNotifier extends StateNotifier<AsyncValue<List<CompetidorEnBase>>>
     _wireSocket();
     _startPolling();
     refresh();
+    // Cuando el juez móvil elige/cambia de base en el panel de circuito,
+    // refresca de inmediato en vez de esperar el próximo ciclo de polling.
+    _ref.listen<String?>(estacionActivaProvider, (_, _) => refresh());
   }
 
   final Ref _ref;
@@ -110,8 +119,15 @@ class PantallaNotifier extends StateNotifier<AsyncValue<List<CompetidorEnBase>>>
   }
 
   Future<void> refresh() async {
+    // Sin base seleccionada en modo móvil no hay nada útil que pedir —
+    // evita mostrar la base placeholder de la conexión.
+    if (_session.modoMovil && _ref.read(estacionActivaProvider) == null) {
+      state = const AsyncValue.data([]);
+      return;
+    }
     try {
-      final data = await _api.getPantalla(_session.tokenSesion);
+      final estacionId = _session.modoMovil ? _ref.read(estacionActivaProvider) : null;
+      final data = await _api.getPantalla(_session.tokenSesion, estacionId: estacionId);
       state = AsyncValue.data(data);
     } catch (e, st) {
       // 404 en /timing/pantalla significa "sesión no encontrada o expirada"

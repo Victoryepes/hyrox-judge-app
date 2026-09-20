@@ -9,12 +9,14 @@ class EnBaseCard extends StatefulWidget {
     required this.busy,
     required this.onPenalizar,
     required this.onDeshacer,
+    required this.onDescalificar,
   });
 
   final CompetidorEnBase comp;
   final bool busy;
   final VoidCallback onPenalizar;
   final VoidCallback onDeshacer;
+  final VoidCallback onDescalificar;
 
   @override
   State<EnBaseCard> createState() => _EnBaseCardState();
@@ -68,6 +70,30 @@ class _EnBaseCardState extends State<EnBaseCard> {
     if (confirmado == true) widget.onDeshacer();
   }
 
+  Future<void> _confirmarDescalificar(BuildContext context) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1815),
+        title: const Text('Descalificar', style: TextStyle(color: Colors.white)),
+        content: Text(
+          '¿Descalificar a #${widget.comp.numeroDorsal} — ${widget.comp.nombre}? No podrá seguir '
+          'compitiendo y su estado quedará como DESCALIFICADO en el ranking.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red.shade800),
+            child: const Text('Sí, descalificar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado == true) widget.onDescalificar();
+  }
+
   /// dd:hh:mm:ss — recortando los tramos en cero por la izquierda, para que
   /// una entrada vieja/abandonada (horas o días) se lea correctamente en vez
   /// de mostrar siempre minutos:segundos (ver caso VICTOR, +3800h atascado).
@@ -103,6 +129,7 @@ class _EnBaseCardState extends State<EnBaseCard> {
               onSelected: (value) {
                 if (value == 'penalizar') widget.onPenalizar();
                 if (value == 'deshacer') _confirmarDeshacer(context);
+                if (value == 'descalificar') _confirmarDescalificar(context);
               },
               itemBuilder: (ctx) => [
                 const PopupMenuItem(
@@ -119,6 +146,14 @@ class _EnBaseCardState extends State<EnBaseCard> {
                     Icon(Icons.undo, size: 16, color: Colors.orangeAccent),
                     SizedBox(width: 8),
                     Text('Deshacer (error de tipeo)', style: TextStyle(color: Colors.white)),
+                  ]),
+                ),
+                const PopupMenuItem(
+                  value: 'descalificar',
+                  child: Row(children: [
+                    Icon(Icons.block, size: 16, color: Colors.redAccent),
+                    SizedBox(width: 8),
+                    Text('Descalificar', style: TextStyle(color: Colors.white)),
                   ]),
                 ),
               ],
