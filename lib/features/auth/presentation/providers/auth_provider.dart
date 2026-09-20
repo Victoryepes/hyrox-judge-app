@@ -30,6 +30,13 @@ class SessionNotifier extends StateNotifier<AsyncValue<JuezSession?>> {
     _socket.connect(session.tokenSesion);
   }
 
+  Future<void> loginMovil({required String codigoAcceso, required CircuitoCategoria categoria}) async {
+    final session = await _api.conectarMovil(codigoAcceso: codigoAcceso, categoria: categoria);
+    await _store.save(session);
+    state = AsyncValue.data(session);
+    _socket.connect(session.tokenSesion);
+  }
+
   Future<void> logout() async {
     final current = state.value;
     if (current != null) {

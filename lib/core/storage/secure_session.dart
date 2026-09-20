@@ -12,6 +12,9 @@ class JuezSession {
   final String nombreEstacion;
   final String codigoAcceso;
   final String? nombreCompetencia;
+  /// true si se conectó siguiendo una categoría (asignación móvil) en vez
+  /// de una estación fija.
+  final bool modoMovil;
 
   const JuezSession({
     required this.tokenSesion,
@@ -21,6 +24,7 @@ class JuezSession {
     required this.nombreEstacion,
     required this.codigoAcceso,
     this.nombreCompetencia,
+    this.modoMovil = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +35,7 @@ class JuezSession {
         'nombreEstacion': nombreEstacion,
         'codigoAcceso': codigoAcceso,
         'nombreCompetencia': nombreCompetencia,
+        'modoMovil': modoMovil,
       };
 
   factory JuezSession.fromJson(Map<String, dynamic> json) => JuezSession(
@@ -41,6 +46,7 @@ class JuezSession {
         nombreEstacion: json['nombreEstacion'] as String,
         codigoAcceso: json['codigoAcceso'] as String,
         nombreCompetencia: json['nombreCompetencia'] as String?,
+        modoMovil: json['modoMovil'] as bool? ?? false,
       );
 }
 

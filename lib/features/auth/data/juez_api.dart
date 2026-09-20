@@ -25,27 +25,91 @@ class EstacionOption {
       );
 }
 
+class CircuitoEstacion {
+  final String id;
+  final int numeroOrden;
+  final String tipo;
+  final String nombreEjercicio;
+  final String detalleRepeticiones;
+
+  const CircuitoEstacion({
+    required this.id,
+    required this.numeroOrden,
+    required this.tipo,
+    required this.nombreEjercicio,
+    required this.detalleRepeticiones,
+  });
+
+  factory CircuitoEstacion.fromJson(Map<String, dynamic> json) => CircuitoEstacion(
+        id: json['id'] as String,
+        numeroOrden: json['numeroOrden'] as int,
+        tipo: json['tipo'] as String,
+        nombreEjercicio: json['nombreEjercicio'] as String? ?? '',
+        detalleRepeticiones: json['detalleRepeticiones'] as String? ?? '',
+      );
+}
+
+class CircuitoCategoria {
+  final String categoriaId;
+  final String nombreCategoria;
+  final String colorHex;
+  final List<CircuitoEstacion> estaciones;
+
+  const CircuitoCategoria({
+    required this.categoriaId,
+    required this.nombreCategoria,
+    required this.colorHex,
+    required this.estaciones,
+  });
+
+  factory CircuitoCategoria.fromJson(Map<String, dynamic> json) => CircuitoCategoria(
+        categoriaId: json['categoriaId'] as String,
+        nombreCategoria: json['nombreCategoria'] as String,
+        colorHex: json['colorHex'] as String? ?? '#888888',
+        estaciones: (json['estaciones'] as List)
+            .map((e) => CircuitoEstacion.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class CircuitoJuez {
+  final bool asignacionMovilJuez;
+  final List<CircuitoCategoria> categorias;
+
+  const CircuitoJuez({required this.asignacionMovilJuez, required this.categorias});
+
+  factory CircuitoJuez.fromJson(Map<String, dynamic> json) => CircuitoJuez(
+        asignacionMovilJuez: json['asignacionMovilJuez'] as bool? ?? false,
+        categorias: (json['categorias'] as List)
+            .map((e) => CircuitoCategoria.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 /// Equivalente a juezService en services/api.ts.
 class JuezApi {
   final _dio = ApiClient.instance.dio;
 
   /// Paso 1: GET /juez/estaciones/by-codigo/:codigo — valida el código y
-  /// devuelve las estaciones de esa competencia. Deduplica solo cuando
-  /// numeroOrden Y ejercicio coinciden -- si una categoria se reordeno por
-  /// separado y ahora difiere, se muestran ambas variantes en vez de ocultar
-  /// una al azar (igual que JudgeAccessModal.tsx).
+  /// devuelve las estaciones de esa competencia. El backend ya deduplica por
+  /// ejercicio (catalogoEjercicioId) para toda la competencia, así que una
+  /// misma base compartida entre categorías aparece una sola vez.
   Future<List<EstacionOption>> estacionesPorCodigo(String codigo) async {
     final res = await _dio.get('/juez/estaciones/by-codigo/$codigo');
-    final list = (res.data as List)
+    return (res.data as List)
         .map((e) => EstacionOption.fromJson(e as Map<String, dynamic>))
         .toList()
       ..sort((a, b) => a.numeroOrden.compareTo(b.numeroOrden));
-
-    final seen = <String>{};
-    return list.where((e) => seen.add('${e.numeroOrden}:${e.nombreEjercicio}')).toList();
   }
 
-  /// Paso 2: POST /juez/conectar — crea la sesión y devuelve el tokenSesion.
+  /// GET /juez/circuito/by-codigo/:codigo — dice si la competencia usa
+  /// asignación móvil de jueces y devuelve el circuito completo por categoría.
+  Future<CircuitoJuez> circuitoPorCodigo(String codigo) async {
+    final res = await _dio.get('/juez/circuito/by-codigo/$codigo');
+    return CircuitoJuez.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Paso 2 (modo fijo): POST /juez/conectar con estacionId.
   Future<JuezSession> conectar({
     required String codigoAcceso,
     required EstacionOption estacion,
@@ -63,6 +127,29 @@ class JuezApi {
       nombreEstacion: estacion.nombreEjercicio,
       codigoAcceso: codigoAcceso,
       nombreCompetencia: data['nombreCompetencia'] as String?,
+    );
+  }
+
+  /// Paso 2 (modo móvil): POST /juez/conectar con categoriaId — el juez sigue
+  /// a la pareja de esa categoría entre bases en vez de quedarse fijo.
+  Future<JuezSession> conectarMovil({
+    required String codigoAcceso,
+    required CircuitoCategoria categoria,
+  }) async {
+    final res = await _dio.post('/juez/conectar', data: {
+      'codigoAcceso': codigoAcceso,
+      'categoriaId': categoria.categoriaId,
+    });
+    final data = res.data as Map<String, dynamic>;
+    return JuezSession(
+      tokenSesion: data['tokenSesion'] as String,
+      sesionId: data['id'] as String,
+      competenciaId: data['competenciaId'] as String,
+      estacionId: data['estacionId'] as String,
+      nombreEstacion: '${categoria.nombreCategoria} (móvil)',
+      codigoAcceso: codigoAcceso,
+      nombreCompetencia: data['nombreCompetencia'] as String?,
+      modoMovil: true,
     );
   }
 

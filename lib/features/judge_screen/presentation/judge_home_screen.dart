@@ -13,6 +13,7 @@ import 'widgets/en_base_card.dart';
 import 'widgets/reps_por_categoria.dart';
 import 'penalizacion_modal.dart';
 import '../domain/models.dart';
+import '../../auth/data/juez_api.dart' show CircuitoCategoria;
 
 /// Equivalente a JudgePage.tsx.
 class JudgeHomeScreen extends ConsumerStatefulWidget {
@@ -34,15 +35,25 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
   List<CompetidorListado> _atletas = [];
   bool _loadingLista = false;
 
+  // Modo móvil: circuito completo por categoría, para que el juez vea todas
+  // las bases que su pareja debe recorrer (equivalente al panel de circuito
+  // en JudgePage.tsx).
+  List<CircuitoCategoria> _circuito = [];
+  String? _circuitoCatActiva;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadCatReps();
+    _loadCircuito();
     // El organizador puede reordenar las bases de una categoría en pleno
     // evento -- antes esta pantalla no se enteraba hasta el próximo login
     // del juez, mostrando reps/ejercicio desactualizados.
-    ref.read(socketClientProvider).on('resultado-actualizado', (_) => _loadCatReps());
+    ref.read(socketClientProvider).on('resultado-actualizado', (_) {
+      _loadCatReps();
+      _loadCircuito();
+    });
   }
 
   Future<void> _loadCatReps() async {
@@ -51,6 +62,20 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     try {
       final reps = await ref.read(timingApiProvider).repsPorCategoria(session.tokenSesion);
       if (mounted) setState(() => _catReps = reps);
+    } catch (_) { /* panel simplemente no se muestra */ }
+  }
+
+  Future<void> _loadCircuito() async {
+    final session = ref.read(sessionProvider).value;
+    if (session == null || !session.modoMovil) return;
+    try {
+      final circuito = await ref.read(timingApiProvider).circuitoJuez(session.tokenSesion);
+      if (mounted) {
+        setState(() {
+          _circuito = circuito.categorias;
+          _circuitoCatActiva ??= circuito.categorias.isNotEmpty ? circuito.categorias.first.categoriaId : null;
+        });
+      }
     } catch (_) { /* panel simplemente no se muestra */ }
   }
 
@@ -309,7 +334,10 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
               ),
             ],
           ),
-          if (_modo == 'dorsal') RepsPorCategoriaPanel(items: _catReps),
+          if (session.modoMovil && _circuito.isNotEmpty)
+            _buildCircuitoPanel()
+          else if (_modo == 'dorsal')
+            RepsPorCategoriaPanel(items: _catReps),
           Expanded(
             child: _modo == 'lista'
                 ? _buildListaMode(pantallaAsync)
@@ -518,6 +546,82 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     } catch (_) {
       return Colors.white38;
     }
+  }
+
+  /// Vista de circuito para modo móvil: tabs por categoría + lista ordenada
+  /// de todas las bases que esa pareja debe recorrer (equivalente al bloque
+  /// de circuito en JudgePage.tsx).
+  Widget _buildCircuitoPanel() {
+    final catActiva = _circuito.firstWhere(
+      (c) => c.categoriaId == _circuitoCatActiva,
+      orElse: () => _circuito.first,
+    );
+    return Container(
+      color: Colors.white.withValues(alpha: 0.03),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: _circuito.map((cat) {
+                final activa = cat.categoriaId == catActiva.categoriaId;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => setState(() => _circuitoCatActiva = cat.categoriaId),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: activa ? Colors.white10 : Colors.transparent,
+                        border: Border.all(color: activa ? _parseColor(cat.colorHex) : Colors.white24),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(radius: 4, backgroundColor: _parseColor(cat.colorHex)),
+                          const SizedBox(width: 6),
+                          Text(cat.nombreCategoria,
+                              style: TextStyle(
+                                color: activa ? Colors.white : Colors.white54,
+                                fontSize: 11, fontWeight: FontWeight.bold,
+                              )),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...catActiva.estaciones.map((e) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      child: Text('${e.numeroOrden}', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${e.tipo == 'LLEGADA' ? '🏁 ' : ''}${e.nombreEjercicio}',
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                    if (e.detalleRepeticiones.isNotEmpty)
+                      Text(e.detalleRepeticiones, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
   }
 }
 

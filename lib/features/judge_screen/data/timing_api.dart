@@ -1,4 +1,5 @@
 import '../../../core/network/api_client.dart';
+import '../../auth/data/juez_api.dart' show CircuitoJuez;
 import '../domain/models.dart';
 
 /// Equivalente a timingService en services/api.ts.
@@ -90,6 +91,17 @@ class TimingApi {
     return (res.data as List)
         .map((e) => RepsPorCategoria.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// GET /timing/circuito — circuito completo por categoría, usado en modo
+  /// móvil para que el juez vea todas las bases que debe recorrer siguiendo
+  /// a un competidor/pareja, filtrable por categoría.
+  Future<CircuitoJuez> circuitoJuez(String tokenSesion) async {
+    final res = await _dio.get(
+      '/timing/circuito',
+      options: ApiClient.instance.withTokenSesion(tokenSesion),
+    );
+    return CircuitoJuez.fromJson(res.data as Map<String, dynamic>);
   }
 
   Future<List<PenalizacionCatalogoItem>> catalogoPenalizaciones(String tokenSesion) async {
