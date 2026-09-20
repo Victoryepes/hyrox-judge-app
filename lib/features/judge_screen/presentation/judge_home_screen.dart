@@ -375,23 +375,26 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
               ],
             ),
           ),
-          // ── Toggle Dorsal / Lista ──────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: _ModoTab(
-                  label: 'DORSAL', icon: Icons.tag, selected: _modo == 'dorsal',
-                  onTap: () => setState(() => _modo = 'dorsal'),
+          // ── Toggle Dorsal / Lista — oculto en asignación móvil: el juez
+          // sigue a una pareja puntual, la lista completa de atletas no
+          // aporta valor ahí (usa el panel de circuito en su lugar). ──────
+          if (!session.modoMovil)
+            Row(
+              children: [
+                Expanded(
+                  child: _ModoTab(
+                    label: 'DORSAL', icon: Icons.tag, selected: _modo == 'dorsal',
+                    onTap: () => setState(() => _modo = 'dorsal'),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _ModoTab(
-                  label: 'LISTA', icon: Icons.list, selected: _modo == 'lista',
-                  onTap: () { setState(() => _modo = 'lista'); _loadAtletas(); },
+                Expanded(
+                  child: _ModoTab(
+                    label: 'LISTA', icon: Icons.list, selected: _modo == 'lista',
+                    onTap: () { setState(() => _modo = 'lista'); _loadAtletas(); },
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           if (session.modoMovil && _circuito.isNotEmpty)
             _buildCircuitoPanel()
           else if (_modo == 'dorsal')

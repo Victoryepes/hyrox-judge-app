@@ -134,17 +134,16 @@ class JuezApi {
     );
   }
 
-  /// Paso 2 (modo móvil): POST /juez/conectar con categoriaId — el juez sigue
-  /// a la pareja de esa categoría entre bases en vez de quedarse fijo.
+  /// Modo móvil: POST /juez/conectar sin categoría ni estación — el juez ve
+  /// todas las categorías y bases del circuito dentro de la app y selecciona
+  /// la base real antes de cada marcado (ver judge_home_screen.dart).
   Future<JuezSession> conectarMovil({
     required String codigoAcceso,
     required String documento,
-    required CircuitoCategoria categoria,
   }) async {
     final res = await _dio.post('/juez/conectar', data: {
       'codigoAcceso': codigoAcceso,
       'documento': documento,
-      'categoriaId': categoria.categoriaId,
     });
     final data = res.data as Map<String, dynamic>;
     return JuezSession(
@@ -152,7 +151,7 @@ class JuezApi {
       sesionId: data['id'] as String,
       competenciaId: data['competenciaId'] as String,
       estacionId: data['estacionId'] as String,
-      nombreEstacion: '${categoria.nombreCategoria} (móvil)',
+      nombreEstacion: 'Asignación móvil',
       codigoAcceso: codigoAcceso,
       nombreCompetencia: data['nombreCompetencia'] as String?,
       modoMovil: true,

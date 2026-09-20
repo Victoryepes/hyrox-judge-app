@@ -18,8 +18,6 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
   bool _loading = false;
   String? _error;
   List<EstacionOption> _estaciones = [];
-  List<CircuitoCategoria> _circuito = [];
-  bool _modoMovil = false;
   String? _codigoFinal;
   String? _documentoFinal;
 
@@ -31,8 +29,9 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
   }
 
   /// Paso 1: valida el código y decide el flujo según asignación móvil,
-  /// igual que handleCodigo en JudgeAccessModal.tsx. La cédula recién se
-  /// valida contra el registro de jueces al conectar (paso 2).
+  /// igual que handleCodigo en JudgeAccessModal.tsx. En modo móvil conecta
+  /// directo (sin elegir categoría — el juez ve todas dentro de la app); en
+  /// modo fijo pasa al paso 2 para elegir la estación.
   Future<void> _buscarEstaciones() async {
     final codigo = _codigoCtrl.text.trim().toUpperCase();
     final documento = _documentoCtrl.text.trim();
@@ -42,15 +41,15 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
       final circuito = await ref.read(juezApiProvider).circuitoPorCodigo(codigo);
       _documentoFinal = documento;
       if (circuito.asignacionMovilJuez) {
-        setState(() { _circuito = circuito.categorias; _modoMovil = true; _codigoFinal = codigo; });
+        await ref.read(sessionProvider.notifier).loginMovil(codigoAcceso: codigo, documento: documento);
       } else {
         final estaciones = await ref.read(juezApiProvider).estacionesPorCodigo(codigo);
-        setState(() { _estaciones = estaciones; _modoMovil = false; _codigoFinal = codigo; });
+        setState(() { _estaciones = estaciones; _codigoFinal = codigo; });
       }
     } catch (e) {
       setState(() => _error = describeApiError(e, fallback: 'Código inválido o competencia no activa'));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -64,21 +63,6 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
           );
     } catch (e) {
       setState(() => _error = describeApiError(e, fallback: 'Error al conectar con la estación'));
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _conectarMovil(CircuitoCategoria categoria) async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      await ref.read(sessionProvider.notifier).loginMovil(
-            codigoAcceso: _codigoFinal!,
-            documento: _documentoFinal!,
-            categoria: categoria,
-          );
-    } catch (e) {
-      setState(() => _error = describeApiError(e, fallback: 'Error al conectar con la categoría'));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -98,12 +82,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
                 const Text('HYROX JUDGE',
                     style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: 2)),
                 const SizedBox(height: 32),
-                if (_codigoFinal == null)
-                  _buildCodigoStep()
-                else if (_modoMovil)
-                  _buildCategoriaStep()
-                else
-                  _buildEstacionStep(),
+                if (_codigoFinal == null) _buildCodigoStep() else _buildEstacionStep(),
                 if (_error != null) ...[
                   const SizedBox(height: 16),
                   Text(_error!, style: const TextStyle(color: Colors.redAccent)),
@@ -221,76 +200,4 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
     );
   }
 
-  /// Modo móvil: el juez elige la categoría de la pareja que va a seguir
-  /// entre bases, en vez de una estación fija (equivalente al paso
-  /// 'categoria' en JudgeAccessModal.tsx).
-  Widget _buildCategoriaStep() {
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4)),
-          child: Text('Código activo: $_codigoFinal',
-              style: const TextStyle(color: Colors.white70, fontFamily: 'monospace')),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Esta competencia usa asignación móvil — vas a seguir a un competidor/pareja '
-          'entre bases. Elige la categoría de tu pareja:',
-          style: TextStyle(color: Colors.white54, fontSize: 12),
-        ),
-        const SizedBox(height: 16),
-        ..._circuito.map((cat) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _loading ? null : () => _conectarMovil(cat),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Colors.white24),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(radius: 6, backgroundColor: _parseColor(cat.colorHex)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(cat.nombreCategoria, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            Text(
-                              cat.estaciones.map((e) => e.nombreEjercicio).join(' · ').isEmpty
-                                  ? 'Sin bases configuradas'
-                                  : cat.estaciones.map((e) => e.nombreEjercicio).join(' · '),
-                              style: const TextStyle(color: Colors.white38, fontSize: 10),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )),
-        TextButton(
-          onPressed: () => setState(() {
-            _codigoFinal = null; _circuito = []; _modoMovil = false; _codigoCtrl.clear(); _documentoCtrl.clear();
-          }),
-          child: const Text('← Cambiar código', style: TextStyle(color: Colors.white54)),
-        ),
-      ],
-    );
-  }
-
-  Color _parseColor(String hex) {
-    try {
-      return Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
-    } catch (_) {
-      return Colors.white38;
-    }
-  }
 }
