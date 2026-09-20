@@ -585,7 +585,14 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: InkWell(
-                    onTap: () => setState(() => _circuitoCatActiva = cat.categoriaId),
+                    onTap: () {
+                      // Cambiar de categoría implica seguir a otra pareja — la
+                      // base seleccionada de la categoría anterior ya no aplica.
+                      if (cat.categoriaId != _circuitoCatActiva) {
+                        ref.read(estacionActivaProvider.notifier).state = null;
+                      }
+                      setState(() => _circuitoCatActiva = cat.categoriaId);
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(

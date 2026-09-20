@@ -6,6 +6,7 @@ class CompetidorEnBase {
   final DateTime horaEntrada;
   final int segundosEnBase;
   final int totalPenalizacionSegundos;
+  final String nombreEjercicio;
 
   const CompetidorEnBase({
     required this.registroId,
@@ -15,6 +16,7 @@ class CompetidorEnBase {
     required this.horaEntrada,
     required this.segundosEnBase,
     required this.totalPenalizacionSegundos,
+    this.nombreEjercicio = '',
   });
 
   factory CompetidorEnBase.fromJson(Map<String, dynamic> json) => CompetidorEnBase(
@@ -25,6 +27,7 @@ class CompetidorEnBase {
         horaEntrada: DateTime.parse(json['horaEntrada'] as String),
         segundosEnBase: json['segundosEnBase'] as int,
         totalPenalizacionSegundos: json['totalPenalizacionSegundos'] as int? ?? 0,
+        nombreEjercicio: json['nombreEjercicio'] as String? ?? '',
       );
 }
 

@@ -173,6 +173,10 @@ class _EnBaseCardState extends State<EnBaseCard> {
                   Text(widget.comp.nombre,
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                       overflow: TextOverflow.ellipsis),
+                  if (widget.comp.nombreEjercicio.isNotEmpty)
+                    Text(widget.comp.nombreEjercicio,
+                        style: const TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 0.5),
+                        overflow: TextOverflow.ellipsis),
                   Text(_formatDuration(_sec),
                       style: const TextStyle(color: Colors.redAccent, fontFamily: 'monospace', fontWeight: FontWeight.w600)),
                 ],
