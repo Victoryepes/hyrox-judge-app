@@ -160,6 +160,14 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
       // Online-first con fallback a cola offline si falla por conectividad
       // (ver plan sección 3) — result es null cuando quedó encolado.
       final estacionId = session.modoMovil ? ref.read(estacionActivaProvider) : null;
+      if (session.modoMovil && estacionId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Selecciona primero la base donde vas a marcar (arriba, en el circuito)')),
+          );
+        }
+        return;
+      }
       final result = await _marcarConSalto(numero, session.tokenSesion, estacionId);
       _dorsalCtrl.clear();
       ref.read(pantallaProvider.notifier).refresh();
