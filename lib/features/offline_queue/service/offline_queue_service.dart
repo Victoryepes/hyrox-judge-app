@@ -77,15 +77,21 @@ class OfflineQueueService {
   Future<MarcarDorsalResult?> marcarDorsal({
     required int numeroDorsal,
     required String tokenSesion,
+    String? estacionId,
+    bool? confirmarSalto,
   }) async {
     try {
-      return await _api.marcarDorsal(numeroDorsal, tokenSesion);
+      return await _api.marcarDorsal(numeroDorsal, tokenSesion, estacionId: estacionId, confirmarSalto: confirmarSalto);
     } catch (e) {
       if (!_isNetworkFailure(e)) rethrow;
       await _dao.insert(PendingAction(
         id: _uuid.v4(),
         actionType: ActionType.marcarDorsal,
-        payload: {'numeroDorsal': numeroDorsal, 'tokenSesion': tokenSesion},
+        payload: {
+          'numeroDorsal': numeroDorsal, 'tokenSesion': tokenSesion,
+          'estacionId': ?estacionId,
+          'confirmarSalto': ?confirmarSalto,
+        },
         createdAt: DateTime.now(),
       ));
       return null;
@@ -200,6 +206,8 @@ class OfflineQueueService {
           final result = await _api.marcarDorsal(
             action.payload['numeroDorsal'] as int,
             action.payload['tokenSesion'] as String,
+            estacionId: action.payload['estacionId'] as String?,
+            confirmarSalto: action.payload['confirmarSalto'] as bool?,
           );
           serverRegistroId = result.registroId;
           break;

@@ -6,10 +6,23 @@ import '../domain/models.dart';
 class TimingApi {
   final _dio = ApiClient.instance.dio;
 
-  Future<MarcarDorsalResult> marcarDorsal(int numeroDorsal, String tokenSesion) async {
+  /// [estacionId]: en asignación móvil, la base que el juez tiene
+  /// seleccionada/activa. Si difiere de la que el backend resolvería
+  /// automáticamente, responde 409 con `requiereConfirmacionSalto` — hay
+  /// que reintentar con [confirmarSalto] en true para registrar el salto.
+  Future<MarcarDorsalResult> marcarDorsal(
+    int numeroDorsal,
+    String tokenSesion, {
+    String? estacionId,
+    bool? confirmarSalto,
+  }) async {
     final res = await _dio.post(
       '/timing/marcar-dorsal',
-      data: {'numeroDorsal': numeroDorsal},
+      data: {
+        'numeroDorsal': numeroDorsal,
+        'estacionId': ?estacionId,
+        'confirmarSalto': ?confirmarSalto,
+      },
       options: ApiClient.instance.withTokenSesion(tokenSesion),
     );
     return MarcarDorsalResult.fromJson(res.data as Map<String, dynamic>);

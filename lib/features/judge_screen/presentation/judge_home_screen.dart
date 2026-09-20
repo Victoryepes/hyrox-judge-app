@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/error_utils.dart';
@@ -108,6 +109,48 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     }
   }
 
+  /// Asignación móvil: si el sistema tenía otra base como "pendiente" y el
+  /// juez está parado en una distinta (competidor que se saltó una base
+  /// llena), el backend responde 409 con requiereConfirmacionSalto. Muestra
+  /// un diálogo y, si se confirma, reintenta con confirmarSalto:true.
+  Future<MarcarDorsalResult?> _marcarConSalto(int numero, String tokenSesion, String? estacionId) async {
+    try {
+      return await ref.read(offlineQueueProvider).marcarDorsal(
+            numeroDorsal: numero, tokenSesion: tokenSesion, estacionId: estacionId,
+          );
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (e.response?.statusCode == 409 && data is Map && data['requiereConfirmacionSalto'] == true) {
+        final baseSugerida = data['baseSugerida'] as Map?;
+        final confirmado = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1C1815),
+            title: const Text('¿Se saltó de base?', style: TextStyle(color: Colors.white)),
+            content: Text(
+              '${data['message'] ?? ''}\n\n'
+              'Pendiente: base ${baseSugerida?['numeroOrden']} — ${baseSugerida?['nombreEjercicio']}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: FilledButton.styleFrom(backgroundColor: Colors.amber.shade800),
+                child: const Text('Sí, se saltó'),
+              ),
+            ],
+          ),
+        );
+        if (confirmado != true) throw _SaltoCanceladoException();
+        return ref.read(offlineQueueProvider).marcarDorsal(
+              numeroDorsal: numero, tokenSesion: tokenSesion, estacionId: estacionId, confirmarSalto: true,
+            );
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _marcarDorsal([int? numeroDirecto]) async {
     final numero = numeroDirecto ?? int.tryParse(_dorsalCtrl.text);
     if (numero == null) return;
@@ -116,9 +159,8 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     try {
       // Online-first con fallback a cola offline si falla por conectividad
       // (ver plan sección 3) — result es null cuando quedó encolado.
-      final result = await ref
-          .read(offlineQueueProvider)
-          .marcarDorsal(numeroDorsal: numero, tokenSesion: session.tokenSesion);
+      final estacionId = session.modoMovil ? ref.read(estacionActivaProvider) : null;
+      final result = await _marcarConSalto(numero, session.tokenSesion, estacionId);
       _dorsalCtrl.clear();
       ref.read(pantallaProvider.notifier).refresh();
       // La lista de "modo lista" (estacionCompletadaRegistroId) no se
@@ -138,6 +180,8 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
                         : '${result.competidorNombre} registrado');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
+    } on _SaltoCanceladoException {
+      // El juez canceló la confirmación de salto — no hay nada que mostrar.
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeApiError(e))));
@@ -667,6 +711,10 @@ class _JudgeHomeScreenState extends ConsumerState<JudgeHomeScreen> with WidgetsB
     );
   }
 }
+
+/// Señal interna de que el juez canceló el diálogo de confirmación de salto
+/// de base — nunca se muestra como error real.
+class _SaltoCanceladoException implements Exception {}
 
 class _ModoTab extends StatelessWidget {
   const _ModoTab({required this.label, required this.icon, required this.selected, required this.onTap});
