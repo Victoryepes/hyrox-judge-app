@@ -14,27 +14,33 @@ class AccessScreen extends ConsumerStatefulWidget {
 
 class _AccessScreenState extends ConsumerState<AccessScreen> {
   final _codigoCtrl = TextEditingController();
+  final _documentoCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
   List<EstacionOption> _estaciones = [];
   List<CircuitoCategoria> _circuito = [];
   bool _modoMovil = false;
   String? _codigoFinal;
+  String? _documentoFinal;
 
   @override
   void dispose() {
     _codigoCtrl.dispose();
+    _documentoCtrl.dispose();
     super.dispose();
   }
 
   /// Paso 1: valida el código y decide el flujo según asignación móvil,
-  /// igual que handleCodigo en JudgeAccessModal.tsx.
+  /// igual que handleCodigo en JudgeAccessModal.tsx. La cédula recién se
+  /// valida contra el registro de jueces al conectar (paso 2).
   Future<void> _buscarEstaciones() async {
     final codigo = _codigoCtrl.text.trim().toUpperCase();
-    if (codigo.isEmpty) return;
+    final documento = _documentoCtrl.text.trim();
+    if (codigo.isEmpty || documento.isEmpty) return;
     setState(() { _loading = true; _error = null; });
     try {
       final circuito = await ref.read(juezApiProvider).circuitoPorCodigo(codigo);
+      _documentoFinal = documento;
       if (circuito.asignacionMovilJuez) {
         setState(() { _circuito = circuito.categorias; _modoMovil = true; _codigoFinal = codigo; });
       } else {
@@ -53,6 +59,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
     try {
       await ref.read(sessionProvider.notifier).login(
             codigoAcceso: _codigoFinal!,
+            documento: _documentoFinal!,
             estacion: estacion,
           );
     } catch (e) {
@@ -67,6 +74,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
     try {
       await ref.read(sessionProvider.notifier).loginMovil(
             codigoAcceso: _codigoFinal!,
+            documento: _documentoFinal!,
             categoria: categoria,
           );
     } catch (e) {
@@ -111,6 +119,25 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
   Widget _buildCodigoStep() {
     return Column(
       children: [
+        const Text(
+          'Ingresa tu cédula (registrada por el organizador) y el código de la competencia',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _documentoCtrl,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white, fontSize: 18, letterSpacing: 2, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            hintText: 'Cédula',
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+            filled: true,
+            fillColor: Colors.white10,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+          ),
+        ),
+        const SizedBox(height: 12),
         TextField(
           controller: _codigoCtrl,
           textAlign: TextAlign.center,
@@ -187,7 +214,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
               ),
             )),
         TextButton(
-          onPressed: () => setState(() { _codigoFinal = null; _estaciones = []; _codigoCtrl.clear(); }),
+          onPressed: () => setState(() { _codigoFinal = null; _estaciones = []; _codigoCtrl.clear(); _documentoCtrl.clear(); }),
           child: const Text('← Cambiar código', style: TextStyle(color: Colors.white54)),
         ),
       ],
@@ -251,7 +278,7 @@ class _AccessScreenState extends ConsumerState<AccessScreen> {
             )),
         TextButton(
           onPressed: () => setState(() {
-            _codigoFinal = null; _circuito = []; _modoMovil = false; _codigoCtrl.clear();
+            _codigoFinal = null; _circuito = []; _modoMovil = false; _codigoCtrl.clear(); _documentoCtrl.clear();
           }),
           child: const Text('← Cambiar código', style: TextStyle(color: Colors.white54)),
         ),

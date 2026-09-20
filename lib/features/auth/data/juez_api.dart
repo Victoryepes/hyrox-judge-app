@@ -109,13 +109,16 @@ class JuezApi {
     return CircuitoJuez.fromJson(res.data as Map<String, dynamic>);
   }
 
-  /// Paso 2 (modo fijo): POST /juez/conectar con estacionId.
+  /// Paso 2 (modo fijo): POST /juez/conectar con estacionId. La cédula debe
+  /// estar previamente registrada por el organizador para esta competencia.
   Future<JuezSession> conectar({
     required String codigoAcceso,
+    required String documento,
     required EstacionOption estacion,
   }) async {
     final res = await _dio.post('/juez/conectar', data: {
       'codigoAcceso': codigoAcceso,
+      'documento': documento,
       'estacionId': estacion.id,
     });
     final data = res.data as Map<String, dynamic>;
@@ -127,6 +130,7 @@ class JuezApi {
       nombreEstacion: estacion.nombreEjercicio,
       codigoAcceso: codigoAcceso,
       nombreCompetencia: data['nombreCompetencia'] as String?,
+      documento: documento,
     );
   }
 
@@ -134,10 +138,12 @@ class JuezApi {
   /// a la pareja de esa categoría entre bases en vez de quedarse fijo.
   Future<JuezSession> conectarMovil({
     required String codigoAcceso,
+    required String documento,
     required CircuitoCategoria categoria,
   }) async {
     final res = await _dio.post('/juez/conectar', data: {
       'codigoAcceso': codigoAcceso,
+      'documento': documento,
       'categoriaId': categoria.categoriaId,
     });
     final data = res.data as Map<String, dynamic>;
@@ -150,6 +156,7 @@ class JuezApi {
       codigoAcceso: codigoAcceso,
       nombreCompetencia: data['nombreCompetencia'] as String?,
       modoMovil: true,
+      documento: documento,
     );
   }
 

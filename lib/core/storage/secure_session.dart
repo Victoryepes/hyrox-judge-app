@@ -15,6 +15,9 @@ class JuezSession {
   /// true si se conectó siguiendo una categoría (asignación móvil) en vez
   /// de una estación fija.
   final bool modoMovil;
+  /// Cédula del juez registrado — se guarda para poder reconectar sin
+  /// volver a pedirla.
+  final String documento;
 
   const JuezSession({
     required this.tokenSesion,
@@ -23,6 +26,7 @@ class JuezSession {
     required this.estacionId,
     required this.nombreEstacion,
     required this.codigoAcceso,
+    required this.documento,
     this.nombreCompetencia,
     this.modoMovil = false,
   });
@@ -36,6 +40,7 @@ class JuezSession {
         'codigoAcceso': codigoAcceso,
         'nombreCompetencia': nombreCompetencia,
         'modoMovil': modoMovil,
+        'documento': documento,
       };
 
   factory JuezSession.fromJson(Map<String, dynamic> json) => JuezSession(
@@ -47,6 +52,7 @@ class JuezSession {
         codigoAcceso: json['codigoAcceso'] as String,
         nombreCompetencia: json['nombreCompetencia'] as String?,
         modoMovil: json['modoMovil'] as bool? ?? false,
+        documento: json['documento'] as String? ?? '',
       );
 }
 
